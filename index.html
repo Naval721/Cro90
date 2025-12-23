@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>Utility Hub – Telegram Mini App</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- Monetag SDK: replace the domain and zone with your production values -->
+  <script
+    id="monetag-sdk"
+    src="//libtl.com/sdk.js"
+    data-zone="10362431"
+    data-sdk="show_10362431"
+  ></script>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <div class="brand">
+        <div class="logo">UH</div>
+        <div>
+          <p class="eyebrow">Monetag-ready mini app</p>
+          <h1>Utility Hub</h1>
+          <p class="sub">Quick tools with rewarded interstitial ads baked in.</p>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="pill ghost" id="preloadBtn"><span class="pill-icon">⚡</span>Preload Ad</button>
+        <button class="pill primary" id="showAdBtn"><span class="pill-icon">🎁</span>Watch &amp; Earn</button>
+        <button class="pill ghost" id="themeToggle"><span class="pill-icon">🌓</span>Toggle Theme</button>
+      </div>
+    </header>
+
+    <main class="grid">
+      <section class="card">
+        <div class="card-head">
+          <div class="card-icon">📝</div>
+          <div>
+            <h3>Notepad</h3>
+            <p>Capture quick thoughts without leaving Telegram.</p>
+          </div>
+        </div>
+        <button class="ghost" data-tool="notepad">Open</button>
+      </section>
+      <section class="card">
+        <div class="card-head">
+          <div class="card-icon">🧮</div>
+          <div>
+            <h3>Calculator</h3>
+            <p>Lightweight math helper for daily tasks.</p>
+          </div>
+        </div>
+        <button class="ghost" data-tool="calculator">Open</button>
+      </section>
+      <section class="card">
+        <div class="card-head">
+          <div class="card-icon">✅</div>
+          <div>
+            <h3>To‑Do</h3>
+            <p>Minimal checklists with quick add.</p>
+          </div>
+        </div>
+        <button class="ghost" data-tool="todo">Open</button>
+      </section>
+      <section class="card">
+        <div class="card-head">
+          <div class="card-icon">📅</div>
+          <div>
+            <h3>Date Helper</h3>
+            <p>Diff and add/subtract days instantly.</p>
+          </div>
+        </div>
+        <button class="ghost" data-tool="date">Open</button>
+      </section>
+      <section class="card">
+        <div class="card-head">
+          <div class="card-icon">📈</div>
+          <div>
+            <h3>Ads Vault</h3>
+            <p>Test rewarded interstitial placements.</p>
+          </div>
+        </div>
+        <button class="ghost" data-tool="ads">Open</button>
+      </section>
+      <section class="card">
+        <div class="card-head">
+          <div class="card-icon">⬇️</div>
+          <div>
+            <h3>Media Fetch</h3>
+            <p>Demo downloader UI (stubbed for launch).</p>
+          </div>
+        </div>
+        <button class="ghost" data-tool="media">Open</button>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div>
+        <p class="tiny">Built for Telegram Mini Apps</p>
+        <p class="tiny">Replace Monetag zone ID before release.</p>
+      </div>
+      <div class="status" id="adStatus">Ad status: idle</div>
+    </footer>
+  </div>
+
+  <script type="module" src="script.js"></script>
+</body>
+</html>
+
