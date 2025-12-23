@@ -12,6 +12,7 @@ let sdkReady = false;
 let sdkReadyPromiseResolve;
 let sdkReadyPromiseReject;
 let preloadInFlight = false;
+let sdkPollInterval;
 
 const sdkReadyPromise = new Promise((resolve, reject) => {
   sdkReadyPromiseResolve = resolve;
@@ -78,7 +79,8 @@ function preloadAd() {
 
 function showAd() {
   try {
-    if (!sdkReady) {
+    // Proceed if handler is present; otherwise surface a clear message
+    if (!sdkReady && !window[sdkMethod]) {
       updateStatus("SDK still loading…");
       console.warn("Ad show attempted before SDK ready");
       return Promise.resolve();
@@ -148,6 +150,16 @@ if (monetagScript) {
   updateStatus("Monetag script tag missing");
   sdkReadyPromiseReject(new Error("Monetag script tag missing"));
 }
+
+// Fallback polling in case the load event is blocked but the handler becomes available
+sdkPollInterval = setInterval(() => {
+  if (window[sdkMethod]) {
+    sdkReady = true;
+    updateStatus("SDK loaded — tap Preload");
+    sdkReadyPromiseResolve();
+    clearInterval(sdkPollInterval);
+  }
+}, 500);
 
 sdkReadyPromise
   .then(() => preloadAd())
