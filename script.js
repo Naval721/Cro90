@@ -1,143 +1,95 @@
-// --- SMART GEO-MATCHING & DYNAMIC INJECTION ---
-// 1. Fetch VPN Location (Blocking)
-let geo = {
-  timezone: "America/New_York",
-  country: "US",
-  locale: "en-US",
-  offset: 300 // minutes
+// --- QUANTUM MINER: HIGH-TRUST DEVICE STRATEGY ---
+// Strategy: "Consistency > Deception"
+// We ACCEPT the VPN Location (IP/Timezone match).
+// We FAKE the Device Quality (iPhone 15 Pro, High-End Hardware).
+
+const SYSTEM_CONFIG = {
+  target: "iPhone15,3", // iPhone 14 Pro Max / 15 Plus
+  os: "iOS 17.2",
+  gpu: "Apple GPU",
+  cores: 6
 };
 
+// 1. DEVICE IDENTITY (The "Premium" Signal)
 try {
-  console.log("NETWORK SCAN: DETECTING VPN ENDPOINT...");
-  const req = await fetch("https://ipapi.co/json/");
-  if (req.ok) {
-    const data = await req.json();
-    // Update Config
-    if (data.timezone) geo.timezone = data.timezone;
-    if (data.country_code) geo.country = data.country_code;
-    // Map common locales
-    const localeMap = {
-      "DE": "de-DE", "GB": "en-GB", "FR": "fr-FR", "BR": "pt-BR",
-      "IN": "en-IN", "RU": "ru-RU", "CA": "en-CA", "AU": "en-AU"
-    };
-    geo.locale = localeMap[data.country_code] || "en-US";
-
-    // Calculate offset roughly (not perfect but better than static)
-    // We relies on Intl for the heavy lifting usually.
-    console.log(`VPN DETECTED: ${data.city}, ${data.country_name}. SYNCING SYSTEM...`);
-  }
-} catch (e) {
-  console.warn("GEO-FS FAILED. FALLBACK TO USA-TIER-1.");
-}
-
-// 2. Apply Deep Spoof (With Dynamic Geo)
-try {
-  // UA & Platform (Keep Mobile Profile)
+  // A. User Agent (Critical)
   Object.defineProperty(navigator, 'userAgent', {
-    get: () => "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+    get: () => "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1"
   });
+
+  // B. Platform
   Object.defineProperty(navigator, 'platform', { get: () => "iPhone" });
   Object.defineProperty(navigator, 'vendor', { get: () => "Apple Computer, Inc." });
   Object.defineProperty(navigator, 'deviceMemory', { get: () => 8 });
   Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 6 });
 
-  // Touch Points
+  // C. Touch (Critical for Mobile validation)
   Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 5 });
 
-  // Network
-  const fakeConnection = {
-    effectiveType: '4g', rtt: 50, downlink: 10, saveData: false,
-    addEventListener: () => { }, removeEventListener: () => { }
-  };
-  Object.defineProperty(navigator, 'connection', { get: () => fakeConnection });
-
-  // Screen
+  // D. Screen (iPhone 14 Pro Max Dimensions)
   Object.defineProperty(screen, 'width', { get: () => 430 });
   Object.defineProperty(screen, 'height', { get: () => 932 });
   Object.defineProperty(window, 'innerWidth', { get: () => 430 });
   Object.defineProperty(window, 'innerHeight', { get: () => 932 });
 
-  // WebRTC Shield
-  const noop = () => { };
-  window.RTCPeerConnection = function () {
-    this.createDataChannel = () => ({ send: noop, close: noop });
-    this.createOffer = () => Promise.resolve({ type: 'offer', sdp: '' });
-    this.setLocalDescription = () => Promise.resolve();
-    this.setRemoteDescription = () => Promise.resolve();
-    this.addEventListener = noop;
-  };
-  window.mozRTCPeerConnection = window.RTCPeerConnection;
+} catch (e) { console.warn("SPOOF: DEVICE ID FAILED", e); }
 
-  // --- ANTI-FINGERPRINTING V4 (DEEP NOISE) ---
 
-  // 1. Canvas Noise (Shift pixels slightly to break hash)
-  const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
-  HTMLCanvasElement.prototype.toDataURL = function (type) {
-    // We don't actually modify the canvas (too slow), we just return a strictly valid but slightly randomized result if possible,
-    // OR we rely on the fact that 'noise' isn't easily visible.
-    // But for speed & safety, let's just perturb the context if '2d' was requested.
-    // Actually, standard tactic:
-    try {
-      const context = this.getContext('2d');
-      if (context) {
-        const shift = Math.floor(Math.random() * 10) - 5;
-        // Invisible modification
-        context.fillStyle = 'rgba(0,0,0,0.01)';
-        context.fillRect(0, 0, 1, 1);
+// 2. GRADE 5 RESIDENTIAL MIMICRY (Hardware Realism)
+try {
+  // A. Remove Automation Flags
+  if (navigator.webdriver) {
+    Object.defineProperty(navigator, 'webdriver', { get: () => false });
+  }
+
+  // B. Plugins (iOS Empty Array)
+  Object.defineProperty(navigator, 'plugins', {
+    get: () => {
+      const p = [];
+      p.refresh = () => { };
+      p.item = () => null;
+      p.namedItem = () => null;
+      return p;
+    }
+  });
+
+  // C. Media Devices (The "Physical Device" Proof)
+  if (navigator.mediaDevices) {
+    navigator.mediaDevices.enumerateDevices = () => {
+      return Promise.resolve([
+        { kind: 'audioinput', label: 'iPhone Microphone', deviceId: 'default', groupId: 'group_1' },
+        { kind: 'videoinput', label: 'Back Camera', deviceId: 'video_1', groupId: 'group_1' },
+        { kind: 'videoinput', label: 'Front Camera', deviceId: 'video_2', groupId: 'group_1' },
+        { kind: 'audiooutput', label: 'iPhone Speaker', deviceId: 'audio_1', groupId: 'group_1' }
+      ]);
+    };
+  }
+
+  // D. Permissions (User History)
+  if (navigator.permissions && navigator.permissions.query) {
+    const originalQuery = navigator.permissions.query;
+    navigator.permissions.query = (parameters) => {
+      if (parameters.name === 'notifications') {
+        return Promise.resolve({ state: 'granted', onchange: null });
       }
-    } catch (e) { }
-    return originalToDataURL.apply(this, arguments);
-  };
+      return originalQuery(parameters);
+    };
+  }
 
-  // 2. Audio Context Noise (Hybrid)
-  const originalCreateOscillator = AudioContext.prototype.createOscillator;
-  AudioContext.prototype.createOscillator = function () {
-    const osc = originalCreateOscillator.apply(this, arguments);
-    // Slight detune to ruin exact frequency analysis
-    osc.detune.value = Math.random() * 0.1;
-    return osc;
-  };
-
-  // 3. WebGL GPU Spoof (The "Apple Silicon" Hack)
+  // E. WebGL (Apple GPU)
   const getParameter = WebGLRenderingContext.prototype.getParameter;
   WebGLRenderingContext.prototype.getParameter = function (parameter) {
-    // 37445 = UNMASKED_VENDOR_WEBGL
-    // 37446 = UNMASKED_RENDERER_WEBGL
-    if (parameter === 37445) {
-      return "Apple Inc.";
-    }
-    if (parameter === 37446) {
-      return "Apple GPU";
-    }
+    if (parameter === 37445) return "Apple Inc.";
+    if (parameter === 37446) return "Apple GPU";
     return getParameter.apply(this, [parameter]);
   };
 
-  // DYNAMIC TIMEZONE & LOCALE
-  Object.defineProperty(navigator, 'language', { get: () => geo.locale });
-  Object.defineProperty(navigator, 'languages', { get: () => [geo.locale, 'en'] });
+  // F. Google Referrer (Organic Traffic Source)
+  Object.defineProperty(document, 'referrer', { get: () => "https://www.google.com/" });
 
-  const originalDTF = Intl.DateTimeFormat;
-  Intl.DateTimeFormat = function (locales, options) {
-    options = options || {};
-    options.timeZone = geo.timezone; // DYNAMIC SYNC
-    return new originalDTF(geo.locale, options);
-  };
-  Intl.DateTimeFormat.supportedLocalesOf = originalDTF.supportedLocalesOf;
+} catch (e) { console.warn("SPOOF: HARDWARE FAILED", e); }
 
-  // Date.toString override (Crucial for deep checks)
-  const nativeToString = Date.prototype.toString;
-  Date.prototype.toString = function () {
-    // Mocking the string format is hard, but usually Intl is the leak.
-    // Ideally we rely on the container (WebView) to handle some, but we force Intl.
-    // If we want to be perfect, we'd need to reconstruct the string from Intl.
-    // For now, let's trust the Int override propagates to headers.
-    return nativeToString.call(this); // Partial mitigation
-  };
-
-  console.log(`SYSTEM OVERRIDE: ACTIVE [${geo.timezone}]`);
-} catch (e) {
-  console.warn("SPOOF FAILED:", e);
-}
+console.log(`[SYSTEM] HIGH-TRUST CONFIG: ACTIVE. PROFILE: ${SYSTEM_CONFIG.target}`);
 
 // 3. Inject SDK (Only AFTER Environment is Secure)
 const mainZone = "10362431";
@@ -430,10 +382,10 @@ function showAd(placementOverride) {
 
     log(`ESTABLISHING LINK [${actualTag}]...`);
 
-    const adParams = {
-      ymid: userId,
-      requestVar: actualTag
-    };
+    // const adParams = {
+    //   ymid: userId,
+    //   requestVar: actualTag
+    // };
 
     // --- AUTO CLOSE / AD KILLER ---
     // Force close any ad overlay after 15 seconds
@@ -448,7 +400,7 @@ function showAd(placementOverride) {
       }
     }, 15000);
 
-    handler(adParams)
+    handler('pop')
       .then(() => {
         clearTimeout(killerTimer); // Cancel killer if user closed it manually
         resolve();
