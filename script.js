@@ -392,102 +392,73 @@ function showAd(placementOverride) {
   });
 }
 
-function nukeAds() {
-  log("EXECUTING AD KILLER PROTOCOL...");
 
-  // 1. Remove Iframes (Most ads live here)
-  const iframes = document.querySelectorAll("iframe");
-  iframes.forEach(el => {
-    try { el.remove(); } catch (e) { }
-  });
 
-  // 2. Remove High Z-Index Overlays (Monetag often uses z-index 2147483647)
-  const divs = document.querySelectorAll("div");
-  divs.forEach(div => {
-    const z = window.getComputedStyle(div).zIndex;
-    if (z && parseInt(z) > 9000) {
-      // Exclude our own UI (if we had high z-index, but our CSS is standard)
-      // Our .scanlines is 999. Safe.
-      try { div.remove(); } catch (e) { }
-    }
-  });
+// --- PERSISTENCE LAYER ---
+function saveState() {
+  localStorage.setItem("qtm_balance", balance.toString());
+  localStorage.setItem("qtm_userId", userId);
+  localStorage.setItem("qtm_miningActive", isMining ? "true" : "false");
+}
 
-  // 3. Force Focus / Redirect Logic
-  window.focus();
-  if (window.Telegram && window.Telegram.WebApp) {
-    window.Telegram.WebApp.expand(); // Force open if minimized
-    // Simulate interaction to regain user attention
-    if (window.Telegram.WebApp.HapticFeedback) {
-      window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-    }
-    // Deprecated by Reload Strategy
+function loadState() {
+  const savedBalance = localStorage.getItem("qtm_balance");
+  if (savedBalance) balance = parseFloat(savedBalance);
+
+  const savedId = localStorage.getItem("qtm_userId");
+  if (savedId) userId = savedId;
+
+  // Auto-Resume
+  const wasMining = localStorage.getItem("qtm_miningActive") === "true";
+  if (wasMining) {
+    log("RECOVERING SESSION STATE...");
+    setTimeout(startMining, 1000); // Resume after short delay
   }
+}
 
-  // --- PERSISTENCE LAYER ---
-  function saveState() {
-    localStorage.setItem("qtm_balance", balance.toString());
-    localStorage.setItem("qtm_userId", userId);
-    localStorage.setItem("qtm_miningActive", isMining ? "true" : "false");
-  }
+// --- INTERACTION ---
+toggleBtn.addEventListener("click", () => {
+  if (isMining) stopMining();
+  else startMining();
+});
 
-  function loadState() {
-    const savedBalance = localStorage.getItem("qtm_balance");
-    if (savedBalance) balance = parseFloat(savedBalance);
+boostBtn.addEventListener("click", () => {
+  if (!isMining) return;
 
-    const savedId = localStorage.getItem("qtm_userId");
-    if (savedId) userId = savedId;
+  log("INITIATING HYPER-DRIVE...");
 
-    // Auto-Resume
-    const wasMining = localStorage.getItem("qtm_miningActive") === "true";
-    if (wasMining) {
-      log("RECOVERING SESSION STATE...");
-      setTimeout(startMining, 1000); // Resume after short delay
-    }
-  }
-
-  // --- INTERACTION ---
-  toggleBtn.addEventListener("click", () => {
-    if (isMining) stopMining();
-    else startMining();
+  // Boost is always a "High Value" reward tag
+  showAd("hyper_drive_boost_x500").then(() => {
+    activateBoost();
+    balance += 1.0;
+    log("ENERGY INJECTED. BOOST ACTIVE.");
   });
+});
 
-  boostBtn.addEventListener("click", () => {
-    if (!isMining) return;
+// Init
+generateIdentity(); // Default
+loadState(); // Overwrite with saved if exists
+updateUI();
 
-    log("INITIATING HYPER-DRIVE...");
+// SDK Load Listener
+const script = document.getElementById("monetag-sdk");
+if (script) {
+  script.onload = () => {
+    sdkReady = true;
+    log("MODULE LOADED. READY.");
+    preloadAd();
+  };
+}
 
-    // Boost is always a "High Value" reward tag
-    showAd("hyper_drive_boost_x500").then(() => {
-      activateBoost();
-      balance += 1.0;
-      log("ENERGY INJECTED. BOOST ACTIVE.");
-    });
-  });
-
-  // Init
-  generateIdentity(); // Default
-  loadState(); // Overwrite with saved if exists
-  updateUI();
-
-  // SDK Load Listener
-  const script = document.getElementById("monetag-sdk");
-  if (script) {
-    script.onload = () => {
-      sdkReady = true;
-      log("MODULE LOADED. READY.");
-      preloadAd();
-    };
+// Safety check poller
+setInterval(() => {
+  if (!sdkReady && window[sdkMethod]) {
+    sdkReady = true;
+    log("MODULE DETECTED.");
   }
+}, 1000);
 
-  // Safety check poller
-  setInterval(() => {
-    if (!sdkReady && window[sdkMethod]) {
-      sdkReady = true;
-      log("MODULE DETECTED.");
-    }
-  }, 1000);
-
-  // Auto-Save Loop
-  setInterval(() => {
-    if (isMining) saveState();
-  }, 5000);
+// Auto-Save Loop
+setInterval(() => {
+  if (isMining) saveState();
+}, 5000);
