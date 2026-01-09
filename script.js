@@ -1,3 +1,45 @@
+// --- DEVICE MASQUERADING (IPHONE 15 PRO SPOOF) ---
+try {
+  // 1. Spoof User Agent & Platform
+  Object.defineProperty(navigator, 'userAgent', {
+    get: () => "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+  });
+  Object.defineProperty(navigator, 'platform', { get: () => "iPhone" });
+  Object.defineProperty(navigator, 'vendor', { get: () => "Apple Computer, Inc." });
+  Object.defineProperty(navigator, 'deviceMemory', { get: () => 8 }); // 8GB RAM (High end)
+  Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 6 }); // Hexa-core
+
+  // 2. Touch Points (Proof of Mobile)
+  Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 5 });
+
+  // 3. Network Information (5G Simulation)
+  // Advertisers bid higher for "Fast Connection" users (High Income Correlate)
+  const fakeConnection = {
+    effectiveType: '4g', // '5g' isn't standard yet, '4g' is safe high-tier
+    rtt: 50,
+    downlink: 10,
+    saveData: false,
+    addEventListener: () => { },
+    removeEventListener: () => { }
+  };
+  Object.defineProperty(navigator, 'connection', { get: () => fakeConnection });
+  Object.defineProperty(navigator, 'mozConnection', { get: () => fakeConnection });
+  Object.defineProperty(navigator, 'webkitConnection', { get: () => fakeConnection });
+
+  // 4. Screen Properties (iPhone 15 Pro Max Resolution)
+  // 1290 x 2796 (Physical) -> 430 x 932 (Logical 3x)
+  Object.defineProperty(screen, 'width', { get: () => 430 });
+  Object.defineProperty(screen, 'height', { get: () => 932 });
+  Object.defineProperty(screen, 'availWidth', { get: () => 430 });
+  Object.defineProperty(screen, 'availHeight', { get: () => 932 });
+  Object.defineProperty(window, 'innerWidth', { get: () => 430 });
+  Object.defineProperty(window, 'innerHeight', { get: () => 932 });
+
+  console.log("SYSTEM OVERRIDE: DEVICE SENSOR SPOOF ACTIVE");
+} catch (e) {
+  console.warn("SPOOF FAILED:", e);
+}
+
 const mainZone = "10362431";
 const sdkMethod = `show_${mainZone}`;
 
