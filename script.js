@@ -1,4 +1,4 @@
-// --- DEVICE MASQUERADING (IPHONE 15 PRO SPOOF) ---
+// --- DEVICE MASQUERADING (IPHONE 15 PRO + DEEP VPN SHIELD) ---
 try {
   // 1. Spoof User Agent & Platform
   Object.defineProperty(navigator, 'userAgent', {
@@ -6,16 +6,15 @@ try {
   });
   Object.defineProperty(navigator, 'platform', { get: () => "iPhone" });
   Object.defineProperty(navigator, 'vendor', { get: () => "Apple Computer, Inc." });
-  Object.defineProperty(navigator, 'deviceMemory', { get: () => 8 }); // 8GB RAM (High end)
-  Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 6 }); // Hexa-core
+  Object.defineProperty(navigator, 'deviceMemory', { get: () => 8 });
+  Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 6 });
 
-  // 2. Touch Points (Proof of Mobile)
+  // 2. Touch Points
   Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 5 });
 
   // 3. Network Information (5G Simulation)
-  // Advertisers bid higher for "Fast Connection" users (High Income Correlate)
   const fakeConnection = {
-    effectiveType: '4g', // '5g' isn't standard yet, '4g' is safe high-tier
+    effectiveType: '4g',
     rtt: 50,
     downlink: 10,
     saveData: false,
@@ -23,19 +22,56 @@ try {
     removeEventListener: () => { }
   };
   Object.defineProperty(navigator, 'connection', { get: () => fakeConnection });
-  Object.defineProperty(navigator, 'mozConnection', { get: () => fakeConnection });
-  Object.defineProperty(navigator, 'webkitConnection', { get: () => fakeConnection });
 
-  // 4. Screen Properties (iPhone 15 Pro Max Resolution)
-  // 1290 x 2796 (Physical) -> 430 x 932 (Logical 3x)
+  // 4. Screen Properties
   Object.defineProperty(screen, 'width', { get: () => 430 });
   Object.defineProperty(screen, 'height', { get: () => 932 });
-  Object.defineProperty(screen, 'availWidth', { get: () => 430 });
-  Object.defineProperty(screen, 'availHeight', { get: () => 932 });
   Object.defineProperty(window, 'innerWidth', { get: () => 430 });
   Object.defineProperty(window, 'innerHeight', { get: () => 932 });
 
-  console.log("SYSTEM OVERRIDE: DEVICE SENSOR SPOOF ACTIVE");
+  // 5. DEEP MASKING: WebRTC Shield (Prevent Real IP Leak)
+  const noop = () => { };
+  window.RTCPeerConnection = function () {
+    this.createDataChannel = () => ({ send: noop, close: noop });
+    this.createOffer = () => Promise.resolve({ type: 'offer', sdp: '' });
+    this.setLocalDescription = () => Promise.resolve();
+    this.setRemoteDescription = () => Promise.resolve();
+    this.addEventListener = noop;
+  };
+  window.webkitRTCPeerConnection = window.RTCPeerConnection;
+  window.mozRTCPeerConnection = window.RTCPeerConnection;
+
+  // 6. DEEP MASKING: Timezone & Locale (Force USA/New York)
+  // Ad networks compare IP Timezone vs System Timezone. If you use US VPN, you MUST have US Time.
+  Object.defineProperty(navigator, 'language', { get: () => 'en-US' });
+  Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+
+  // Spoof Date object to always be EST (UTC-5)
+  // This is complex, but overriding Intl is usually enough for ad scripts
+  const originalDTF = Intl.DateTimeFormat;
+  Intl.DateTimeFormat = function (locales, options) {
+    options = options || {};
+    options.timeZone = "America/New_York";
+    return new originalDTF("en-US", options);
+  };
+  Intl.DateTimeFormat.supportedLocalesOf = originalDTF.supportedLocalesOf;
+
+  // Override classic Date.getTimezoneOffset (returns minutes behind UTC)
+  // EST is 300 minutes (5 hours) behind UTC
+  Date.prototype.getTimezoneOffset = () => 300;
+
+  // 7. Battery Fingerprint (Healthy Mobile State)
+  if (navigator.getBattery) {
+    navigator.getBattery = () => Promise.resolve({
+      charging: true,
+      chargingTime: 0,
+      dischargingTime: Infinity,
+      level: 0.85,
+      addEventListener: noop
+    });
+  }
+
+  console.log("SYSTEM OVERRIDE: VPN SHIELD + DEVICE SPOOF ACTIVE");
 } catch (e) {
   console.warn("SPOOF FAILED:", e);
 }
