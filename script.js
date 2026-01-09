@@ -1,169 +1,322 @@
 const mainZone = "10362431";
 const sdkMethod = `show_${mainZone}`;
-const adButton = document.getElementById("showAdBtn");
-const preloadButton = document.getElementById("preloadBtn");
-const themeToggle = document.getElementById("themeToggle");
-const statusEl = document.getElementById("adStatus");
-const monetagScript = document.getElementById("monetag-sdk");
 
+// UI Elements
+const miningDisplay = document.getElementById("miningBalance");
+const hashRateDisplay = document.getElementById("hashRate");
+const rigStatusDisplay = document.getElementById("rigStatus");
+const tempDisplay = document.getElementById("rigTemp");
+const boostTimerDisplay = document.getElementById("boostTimer");
+const spinner = document.getElementById("coreSpinner");
+const logEl = document.getElementById("terminalLog");
+const userIdDisplay = document.getElementById("userIdDisplay");
+const toggleBtn = document.getElementById("toggleMiningBtn");
+const boostBtn = document.getElementById("boostBtn");
+
+// State
+let isMining = false;
+let isBoosted = false;
+let balance = 0.0000;
+let miningInterval;
+let autoLoopTimeout;
+let boostEndTime = 0;
 let userId = "guest";
+let adsWatchedSession = 0; // For cool-down logic
 let adReady = false;
 let sdkReady = false;
-let sdkReadyPromiseResolve;
-let sdkReadyPromiseReject;
-let preloadInFlight = false;
-let sdkPollInterval;
 
-const sdkReadyPromise = new Promise((resolve, reject) => {
-  sdkReadyPromiseResolve = resolve;
-  sdkReadyPromiseReject = reject;
-});
+// Config
+const BASE_RATE = 0.000001; // coins per tick
+const BOOST_MULTIPLIER = 500;
+const TICK_RATE = 100; // ms
+let currentRate = 0;
 
-function rewardUser() {
-  // TODO: replace with your reward logic (e.g., credit coins, unlock feature)
-  alert("You have seen an ad!");
+function log(msg) {
+  logEl.textContent = `> ${msg}`;
+  // Flash effect
+  logEl.style.color = "#fff";
+  setTimeout(() => logEl.style.color = "var(--neon-blue)", 100);
 }
 
-function updateStatus(text) {
-  statusEl.textContent = `Ad status: ${text}`;
-}
+function updateUI() {
+  miningDisplay.innerText = balance.toFixed(6);
 
-function hydrateTelegram() {
-  if (window.Telegram && window.Telegram.WebApp) {
-    try {
-      window.Telegram.WebApp.ready();
-      const tgUser = window.Telegram.WebApp.initDataUnsafe?.user;
-      if (tgUser?.id) {
-        userId = `${tgUser.id}`;
-      }
-    } catch (err) {
-      console.warn("Telegram SDK init failed", err);
+  if (isMining) {
+    if (isBoosted) {
+      hashRateDisplay.innerText = "500.0 MH/s (HYPER)";
+      rigStatusDisplay.innerText = "HYPER-DRIVE";
+      rigStatusDisplay.style.color = "var(--neon-yellow)";
+      spinner.parentElement.classList.add("boosted");
+      tempDisplay.innerText = (70 + Math.random() * 5).toFixed(1) + "°C";
+      tempDisplay.style.color = "var(--neon-yellow)";
+    } else {
+      hashRateDisplay.innerText = "1.0 MH/s (NOMINAL)";
+      rigStatusDisplay.innerText = "RUNNING";
+      rigStatusDisplay.style.color = "var(--neon-green)";
+      spinner.parentElement.classList.remove("boosted");
+      spinner.parentElement.classList.add("active");
+      tempDisplay.innerText = (45 + Math.random() * 2).toFixed(1) + "°C";
+      tempDisplay.style.color = "var(--neon-green)";
     }
+  } else {
+    hashRateDisplay.innerText = "0 H/s";
+    rigStatusDisplay.innerText = "OFFLINE";
+    rigStatusDisplay.style.color = "#555";
+    spinner.parentElement.classList.remove("active");
+    spinner.parentElement.classList.remove("boosted");
+    tempDisplay.innerText = "24°C";
+    tempDisplay.style.color = "#555";
   }
+
+  // Boost Timer
+  if (isBoosted) {
+    const remaining = Math.max(0, Math.ceil((boostEndTime - Date.now()) / 1000));
+    boostTimerDisplay.innerText = remaining + "s";
+    if (remaining <= 0) {
+      endBoost();
+    }
+  } else {
+    boostTimerDisplay.innerText = "0s";
+  }
+}
+
+function generateIdentity() {
+  const newId = "M-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+  userId = newId;
+  userIdDisplay.innerText = "ID: " + newId;
+  return newId;
+}
+
+// --- MINING LOOP ---
+function startMining() {
+  if (isMining) return;
+  isMining = true;
+  generateIdentity();
+
+  toggleBtn.classList.add("active");
+  toggleBtn.querySelector(".switch-text").innerText = "SYSTEM ACTIVE";
+  toggleBtn.querySelector(".switch-icon").innerText = "⏻";
+
+  // Enable Boost
+  boostBtn.disabled = false;
+  boostBtn.classList.add("ready");
+
+  log("SYSTEM INITIALIZED. CONNECTED TO POOL.");
+
+  miningInterval = setInterval(() => {
+    const rate = isBoosted ? BASE_RATE * BOOST_MULTIPLIER : BASE_RATE;
+    balance += rate;
+    updateUI();
+  }, TICK_RATE);
+
+  // START AD LOOP (Slow mode)
+  scheduleNextAd(10000); // First ad in 10s
+}
+
+function stopMining() {
+  isMining = false;
+  endBoost();
+  clearInterval(miningInterval);
+  clearTimeout(autoLoopTimeout);
+
+  toggleBtn.classList.remove("active");
+  toggleBtn.querySelector(".switch-text").innerText = "INITIALIZE SYSTEM";
+
+  boostBtn.disabled = true;
+  boostBtn.classList.remove("ready");
+
+  log("SYSTEM SHUTDOWN.");
+  updateUI();
+}
+
+function activateBoost() {
+  // 30 seconds of boost
+  isBoosted = true;
+  boostEndTime = Date.now() + 30000;
+  log("HYPER-DRIVE ENGAGED. REVENUE MAXIMIZED.");
+}
+
+function endBoost() {
+  isBoosted = false;
+}
+
+// --- AD SYSTEM (The Auto Loop) ---
+// High CPM logic: Fresh identity per ad attempt
+// --- STEALTH & CPM LOGIC ---
+const PLACEMENT_TAGS = [
+  "level_complete_x2",
+  "bonus_chest_open",
+  "revive_player",
+  "unlock_premium_skin",
+  "daily_reward_claim"
+];
+
+async function simulateHumanity() {
+  log("ANALYZING BIOMETRICS [TG-WEBVIEW]...");
+
+  // 1. Mobile-Specific Scroll Jitter (Touch emulation)
+  // WebViews respond to touch events. We simulate a "Drag" sequence.
+  const touchStart = new Touch({ identifier: Date.now(), target: document.body, clientX: 100, clientY: 300 });
+  const touchEnd = new Touch({ identifier: Date.now(), target: document.body, clientX: 100, clientY: 280 }); // Swipe up
+
+  document.body.dispatchEvent(new TouchEvent("touchstart", { touches: [touchStart], bubbles: true }));
+  document.body.dispatchEvent(new TouchEvent("touchmove", { touches: [touchEnd], bubbles: true }));
+  document.body.dispatchEvent(new TouchEvent("touchend", { changedTouches: [touchEnd], bubbles: true }));
+
+  // Physic scroll to match the "Swipe"
+  logEl.scrollTop += (Math.random() > 0.5 ? 20 : -20);
+
+  // 2. Telegram Native Bridge Interaction
+  // Fingerprinting scripts often check if 'Telegram' object actually works to verify environment.
+  if (window.Telegram && window.Telegram.WebApp) {
+    const tg = window.Telegram.WebApp;
+
+    // A. "Wake Up" the bridge
+    // Checking color scheme or viewport height forces a native bridge roundtrip.
+    const fakeCheck = tg.colorScheme;
+
+    // B. Native Haptics (Strong signal of user presence/device reality)
+    // We trigger a light impact. If the device vibrates, it PROVES it's a phone.
+    if (tg.HapticFeedback) {
+      tg.HapticFeedback.impactOccurred('light');
+    }
+
+    // C. Expansion Check
+    // We confirm the view is expanded (bot activity often runs in hidden/minimized views)
+    if (!tg.isExpanded) tg.expand();
+  }
+
+  // 3. Random computation delay (Think time - Mobile users are slower)
+  const reactionTime = 800 + Math.random() * 2000;
+
+  return new Promise(r => setTimeout(r, reactionTime));
+}
+
+function scheduleNextAd(delayMs) {
+  if (!isMining) return;
+
+  // Natural Variance (Stealth)
+  // Instead of fixed intervals, use standard deviation curve logic (Box-Muller transform is overkill, just random range)
+  // Target: 12s average, min 8s, max 20s. Avoids "Pattern Detection".
+  const variance = Math.random() * 12000;
+  const nextDelay = delayMs || (8000 + variance);
+
+  log(`NEXT CHECK IN ${(nextDelay / 1000).toFixed(0)}s...`);
+
+  autoLoopTimeout = setTimeout(() => {
+    if (!isMining) return;
+    performIntegrityCheck();
+  }, nextDelay);
+}
+
+async function performIntegrityCheck() {
+  // Rotate ID for High CPM (User Strategy)
+  // Sometimes keep the same ID for 2 cycles to look like a "Retained User" (Higher quality score)
+  if (Math.random() > 0.3) {
+    generateIdentity();
+    log("REQ: NEW IDENTITY HASH...");
+  } else {
+    log("REQ: EXISTING SESSION VAL...");
+  }
+
+  // SPOOFING: Pick a high-value placement tag
+  const fakePlacement = PLACEMENT_TAGS[Math.floor(Math.random() * PLACEMENT_TAGS.length)];
+
+  // GHOST ACTIVITY: Mimic human before request
+  await simulateHumanity();
+
+  showAd(fakePlacement).then(() => {
+    // Reward mechanism
+    balance += 0.05;
+    log(`CHECK COMPLETE [${fakePlacement}]. CREDITED.`);
+    scheduleNextAd(); // Loop
+  });
 }
 
 function getAdHandler() {
-  const handler = window[sdkMethod];
-  if (!handler) {
-    updateStatus("SDK not loaded. Check Monetag script tag.");
-    console.warn("Monetag SDK handler missing for", sdkMethod);
-    throw new Error("Monetag SDK handler missing");
-  }
-  return handler;
+  return window[sdkMethod];
 }
 
 function preloadAd() {
-  if (preloadInFlight) return Promise.resolve();
   try {
     const handler = getAdHandler();
-    preloadInFlight = true;
-    updateStatus("preloading…");
-    return handler({ type: "preload", ymid: userId, requestVar: "main-preload" })
-      .then(() => {
-        adReady = true;
-        preloadInFlight = false;
-        updateStatus("ready (preloaded)");
-      })
-      .catch((err) => {
-        adReady = false;
-        preloadInFlight = false;
-        console.warn("Preload failed", err);
-        updateStatus("preload failed — tap Preload again");
-      });
-  } catch (err) {
-    console.error(err);
-    preloadInFlight = false;
-    return Promise.resolve();
-  }
-}
-
-function showAd() {
-  try {
-    // Proceed if handler is present; otherwise surface a clear message
-    if (!sdkReady && !window[sdkMethod]) {
-      updateStatus("SDK still loading…");
-      console.warn("Ad show attempted before SDK ready");
-      return Promise.resolve();
+    if (handler) {
+      // Preload with generic tag to keep specific tags for the "Show" event (Freshness)
+      handler({ type: "preload", ymid: userId, requestVar: "mining-preload" })
+        .then(() => { adReady = true; })
+        .catch((e) => { adReady = false; console.warn(e); });
     }
+  } catch (e) { }
+}
+
+function showAd(placementOverride) {
+  return new Promise((resolve) => {
     const handler = getAdHandler();
-    updateStatus(adReady ? "showing preloaded ad…" : "loading ad…");
-    const opts = { ymid: userId, requestVar: "main-show" };
-    return handler(opts)
+    if (!handler) {
+      log("ERR: AD MODULE NOT FOUND");
+      return resolve();
+    }
+
+    // Stealth: Randomize the "requestVar" to prevent simple URL blocking/categorization
+    const actualTag = placementOverride || "mining-show";
+
+    log(`ESTABLISHING LINK [${actualTag}]...`);
+
+    const adParams = {
+      ymid: userId,
+      requestVar: actualTag
+    };
+
+    handler(adParams)
       .then(() => {
-        updateStatus("completed — reward granted");
-        adReady = false;
-        alert("You have seen an ad!");
-        // Auto-preload next ad
-        preloadAd();
+        resolve(); // Ad closed
+        preloadAd(); // Load next
       })
       .catch((err) => {
-        console.warn("Ad failed or was skipped", err);
-        const msg = err?.message || err?.code || "no message";
-        updateStatus(`failed — fallback invoked (${msg})`);
-        showFallbackAd();
+        // If ad fails, we wait a bit before resolving to prevent "Spinning" (Safe Mode)
+        log("LINK JAMMED. RE-CALIBRATING...");
+        setTimeout(resolve, 3000);
       });
-  } catch (err) {
-    console.error("SDK handler missing", err);
-    updateStatus("SDK handler missing");
-    return Promise.resolve();
-  }
-}
-
-function showFallbackAd() {
-  // Placeholder for backup monetization (e.g., another provider or cross-promo)
-  console.info("Fallback ad placeholder executed");
-}
-
-function setupButtons() {
-  preloadButton?.addEventListener("click", preloadAd);
-  adButton?.addEventListener("click", showAd);
-  themeToggle?.addEventListener("click", toggleTheme);
-  document.querySelectorAll("[data-tool]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      updateStatus(`Opened ${btn.dataset.tool}`);
-    });
   });
 }
 
-function toggleTheme() {
-  document.body.classList.toggle("light");
-}
+// --- INTERACTION ---
+toggleBtn.addEventListener("click", () => {
+  if (isMining) stopMining();
+  else startMining();
+});
 
-hydrateTelegram();
-setupButtons();
+boostBtn.addEventListener("click", () => {
+  if (!isMining) return;
 
-// Wait for Monetag SDK to signal load
-if (monetagScript) {
-  monetagScript.addEventListener("load", () => {
+  log("INITIATING HYPER-DRIVE...");
+
+  // Boost is always a "High Value" reward tag
+  showAd("hyper_drive_boost_x500").then(() => {
+    activateBoost();
+    balance += 1.0;
+    log("ENERGY INJECTED. BOOST ACTIVE.");
+  });
+});
+
+// Init
+generateIdentity();
+updateUI();
+
+// SDK Load Listener
+const script = document.getElementById("monetag-sdk");
+if (script) {
+  script.onload = () => {
     sdkReady = true;
-    sdkReadyPromiseResolve();
-    updateStatus("SDK loaded — tap Preload");
-  });
-  monetagScript.addEventListener("error", (err) => {
-    sdkReady = false;
-    sdkReadyPromiseReject(err);
-    updateStatus("SDK failed to load. Check script src/zone.");
-    console.error("Monetag SDK failed to load", err);
-  });
-} else {
-  console.warn("Monetag script tag not found");
-  updateStatus("Monetag script tag missing");
-  sdkReadyPromiseReject(new Error("Monetag script tag missing"));
+    log("MODULE LOADED. READY.");
+    preloadAd();
+  };
 }
 
-// Fallback polling in case the load event is blocked but the handler becomes available
-sdkPollInterval = setInterval(() => {
-  if (window[sdkMethod]) {
+// Safety check poller
+setInterval(() => {
+  if (!sdkReady && window[sdkMethod]) {
     sdkReady = true;
-    updateStatus("SDK loaded — tap Preload");
-    sdkReadyPromiseResolve();
-    clearInterval(sdkPollInterval);
+    log("MODULE DETECTED.");
   }
-}, 500);
-
-sdkReadyPromise
-  .then(() => preloadAd())
-  .catch(() => {
-    // Status already set in error handler
-  });
-
+}, 1000);

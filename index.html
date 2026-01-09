@@ -1,117 +1,83 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#0f172a" />
-  <title>Utility Hub – Telegram Mini App</title>
+  <meta name="theme-color" content="#000000" />
+  <title>Quantum Miner</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-    rel="stylesheet"
-  />
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap"
+    rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <!-- Monetag SDK: replace the domain and zone with your production values -->
-  <script
-    id="monetag-sdk"
-    src="https://libtl.com/sdk.js"
-    data-zone="10362431"
-    data-sdk="show_10362431"
-  ></script>
+  <!-- Monetag SDK -->
+  <script id="monetag-sdk" src="https://libtl.com/sdk.js" data-zone="10362431" data-sdk="show_10362431"></script>
 </head>
-<body>
-  <div class="page">
-    <header class="hero">
-      <div class="brand">
-        <div class="logo">UH</div>
-        <div>
-          <p class="eyebrow">Monetag-ready mini app</p>
-          <h1>Utility Hub</h1>
-          <p class="sub">Quick tools with rewarded interstitial ads baked in.</p>
-        </div>
+
+<body class="cyberpunk">
+  <div class="scanlines"></div>
+  <div class="app-container">
+
+    <header class="hud-header">
+      <div class="logo-area">
+        <div class="logo-icon">💠</div>
+        <div class="logo-text">QUANTUM<span class="highlight">MINER</span></div>
       </div>
-      <div class="actions">
-        <button class="pill ghost" id="preloadBtn"><span class="pill-icon">⚡</span>Preload Ad</button>
-        <button class="pill primary" id="showAdBtn"><span class="pill-icon">🎁</span>Watch &amp; Earn</button>
-        <button class="pill ghost" id="themeToggle"><span class="pill-icon">🌓</span>Toggle Theme</button>
-      </div>
+      <div class="connection-status" id="connStatus">ONLINE</div>
     </header>
 
-    <main class="grid">
-      <section class="card">
-        <div class="card-head">
-          <div class="card-icon">📝</div>
-          <div>
-            <h3>Notepad</h3>
-            <p>Capture quick thoughts without leaving Telegram.</p>
+    <main class="miner-core">
+      <div class="reactor-ring">
+        <div class="core-spinner" id="coreSpinner"></div>
+        <div class="core-value">
+          <span class="currency-symbol">QTM</span>
+          <span id="miningBalance">0.0000</span>
+        </div>
+        <div class="core-rate" id="hashRate">0 H/s</div>
+      </div>
+
+      <div class="control-deck">
+        <div class="status-panel">
+          <div class="panel-row">
+            <span class="label">RIG STATUS</span>
+            <span class="value" id="rigStatus">OFFLINE</span>
+          </div>
+          <div class="panel-row">
+            <span class="label">TEMP</span>
+            <span class="value text-green" id="rigTemp">24°C</span>
+          </div>
+          <div class="panel-row">
+            <span class="label">BOOST</span>
+            <span class="value text-yellow" id="boostTimer">0s</span>
           </div>
         </div>
-        <button class="ghost" data-tool="notepad">Open</button>
-      </section>
-      <section class="card">
-        <div class="card-head">
-          <div class="card-icon">🧮</div>
-          <div>
-            <h3>Calculator</h3>
-            <p>Lightweight math helper for daily tasks.</p>
+
+        <button class="main-switch" id="toggleMiningBtn">
+          <span class="switch-icon">⏻</span>
+          <span class="switch-text">INITIALIZE SYSTEM</span>
+        </button>
+
+        <button class="boost-btn" id="boostBtn" disabled>
+          <span class="bolt-icon">⚡</span>
+          <div class="btn-content">
+            <span class="btn-title">INJECT ENERGY</span>
+            <span class="btn-sub">WATCH AD (+500% SPD)</span>
           </div>
-        </div>
-        <button class="ghost" data-tool="calculator">Open</button>
-      </section>
-      <section class="card">
-        <div class="card-head">
-          <div class="card-icon">✅</div>
-          <div>
-            <h3>To‑Do</h3>
-            <p>Minimal checklists with quick add.</p>
-          </div>
-        </div>
-        <button class="ghost" data-tool="todo">Open</button>
-      </section>
-      <section class="card">
-        <div class="card-head">
-          <div class="card-icon">📅</div>
-          <div>
-            <h3>Date Helper</h3>
-            <p>Diff and add/subtract days instantly.</p>
-          </div>
-        </div>
-        <button class="ghost" data-tool="date">Open</button>
-      </section>
-      <section class="card">
-        <div class="card-head">
-          <div class="card-icon">📈</div>
-          <div>
-            <h3>Ads Vault</h3>
-            <p>Test rewarded interstitial placements.</p>
-          </div>
-        </div>
-        <button class="ghost" data-tool="ads">Open</button>
-      </section>
-      <section class="card">
-        <div class="card-head">
-          <div class="card-icon">⬇️</div>
-          <div>
-            <h3>Media Fetch</h3>
-            <p>Demo downloader UI (stubbed for launch).</p>
-          </div>
-        </div>
-        <button class="ghost" data-tool="media">Open</button>
-      </section>
+        </button>
+      </div>
     </main>
 
-    <footer class="footer">
-      <div>
-        <p class="tiny">Built for Telegram Mini Apps</p>
-        <p class="tiny">Replace Monetag zone ID before release.</p>
+    <footer class="hud-footer">
+      <div class="terminal-log" id="terminalLog">
+        > SYSTEM READY...
       </div>
-      <div class="status" id="adStatus">Ad status: idle</div>
+      <div class="id-tag" id="userIdDisplay">ID: GUEST</div>
     </footer>
   </div>
 
   <script type="module" src="script.js"></script>
 </body>
-</html>
 
+</html>
