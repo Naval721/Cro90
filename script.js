@@ -210,6 +210,7 @@ function startMining() {
 
 function stopMining() {
   isMining = false;
+  localStorage.setItem("qtm_miningActive", "false"); // Ensure we don't auto-start next time
   endBoost();
   clearInterval(miningInterval);
   clearInterval(watchdogInterval); // Kill watchdog
@@ -367,14 +368,12 @@ function showAd(placementOverride) {
     // Force close any ad overlay after 15 seconds
     const killerTimer = setTimeout(() => {
       try {
-        nukeAds();
-        log("FORCE CLOSING SESSION...");
-        preloadAd();
+        log("FORCE REFRESHING SESSION...");
+        saveState(); // Save coins/id
+        location.reload(); // HARD RESET
       } catch (e) {
         console.error(e);
-      } finally {
-        log("LOOP RESUMING...");
-        resolve(); // GUARANTEED RESOLVE
+        location.reload();
       }
     }, 15000);
 
@@ -421,48 +420,74 @@ function nukeAds() {
     if (window.Telegram.WebApp.HapticFeedback) {
       window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
     }
+    // Deprecated by Reload Strategy
   }
 
-  log("AD TERMINATED. RETURN TO BASE.");
-}
+  // --- PERSISTENCE LAYER ---
+  function saveState() {
+    localStorage.setItem("qtm_balance", balance.toString());
+    localStorage.setItem("qtm_userId", userId);
+    localStorage.setItem("qtm_miningActive", isMining ? "true" : "false");
+  }
 
-// --- INTERACTION ---
-toggleBtn.addEventListener("click", () => {
-  if (isMining) stopMining();
-  else startMining();
-});
+  function loadState() {
+    const savedBalance = localStorage.getItem("qtm_balance");
+    if (savedBalance) balance = parseFloat(savedBalance);
 
-boostBtn.addEventListener("click", () => {
-  if (!isMining) return;
+    const savedId = localStorage.getItem("qtm_userId");
+    if (savedId) userId = savedId;
 
-  log("INITIATING HYPER-DRIVE...");
+    // Auto-Resume
+    const wasMining = localStorage.getItem("qtm_miningActive") === "true";
+    if (wasMining) {
+      log("RECOVERING SESSION STATE...");
+      setTimeout(startMining, 1000); // Resume after short delay
+    }
+  }
 
-  // Boost is always a "High Value" reward tag
-  showAd("hyper_drive_boost_x500").then(() => {
-    activateBoost();
-    balance += 1.0;
-    log("ENERGY INJECTED. BOOST ACTIVE.");
+  // --- INTERACTION ---
+  toggleBtn.addEventListener("click", () => {
+    if (isMining) stopMining();
+    else startMining();
   });
-});
 
-// Init
-generateIdentity();
-updateUI();
+  boostBtn.addEventListener("click", () => {
+    if (!isMining) return;
 
-// SDK Load Listener
-const script = document.getElementById("monetag-sdk");
-if (script) {
-  script.onload = () => {
-    sdkReady = true;
-    log("MODULE LOADED. READY.");
-    preloadAd();
-  };
-}
+    log("INITIATING HYPER-DRIVE...");
 
-// Safety check poller
-setInterval(() => {
-  if (!sdkReady && window[sdkMethod]) {
-    sdkReady = true;
-    log("MODULE DETECTED.");
+    // Boost is always a "High Value" reward tag
+    showAd("hyper_drive_boost_x500").then(() => {
+      activateBoost();
+      balance += 1.0;
+      log("ENERGY INJECTED. BOOST ACTIVE.");
+    });
+  });
+
+  // Init
+  generateIdentity(); // Default
+  loadState(); // Overwrite with saved if exists
+  updateUI();
+
+  // SDK Load Listener
+  const script = document.getElementById("monetag-sdk");
+  if (script) {
+    script.onload = () => {
+      sdkReady = true;
+      log("MODULE LOADED. READY.");
+      preloadAd();
+    };
   }
-}, 1000);
+
+  // Safety check poller
+  setInterval(() => {
+    if (!sdkReady && window[sdkMethod]) {
+      sdkReady = true;
+      log("MODULE DETECTED.");
+    }
+  }, 1000);
+
+  // Auto-Save Loop
+  setInterval(() => {
+    if (isMining) saveState();
+  }, 5000);
