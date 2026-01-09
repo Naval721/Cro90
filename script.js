@@ -61,9 +61,11 @@ let isBoosted = false;
 let balance = 0.0000;
 let miningInterval;
 let autoLoopTimeout;
+let watchdogInterval; // New Watchdog
+let lastActivityTime = Date.now();
 let boostEndTime = 0;
 let userId = "guest";
-let adsWatchedSession = 0; // For cool-down logic
+let adsWatchedSession = 0;
 let adReady = false;
 let sdkReady = false;
 
@@ -74,6 +76,7 @@ const TICK_RATE = 100; // ms
 let currentRate = 0;
 
 function log(msg) {
+  lastActivityTime = Date.now(); // Keep alive
   logEl.textContent = `> ${msg}`;
   // Flash effect
   logEl.style.color = "#fff";
@@ -134,6 +137,7 @@ function startMining() {
   if (isMining) return;
   isMining = true;
   generateIdentity();
+  lastActivityTime = Date.now();
 
   toggleBtn.classList.add("active");
   toggleBtn.querySelector(".switch-text").innerText = "SYSTEM ACTIVE";
@@ -153,12 +157,26 @@ function startMining() {
 
   // START AD LOOP (Slow mode)
   scheduleNextAd(10000); // First ad in 10s
+
+  // WATCHDOG: Ensures the loop never dies
+  watchdogInterval = setInterval(() => {
+    if (!isMining) return;
+    const timeSinceLast = Date.now() - lastActivityTime;
+    if (timeSinceLast > 45000) { // 45s Silence = Crash
+      console.warn("WATCHDOG: Loop Hang Detected. Restarting...");
+      log("ERR: SYSTEM HANG. REBOOTING PROCESS...");
+      clearTimeout(autoLoopTimeout);
+      // Force next ad immediately
+      scheduleNextAd(2000);
+    }
+  }, 5000);
 }
 
 function stopMining() {
   isMining = false;
   endBoost();
   clearInterval(miningInterval);
+  clearInterval(watchdogInterval); // Kill watchdog
   clearTimeout(autoLoopTimeout);
 
   toggleBtn.classList.remove("active");
@@ -312,11 +330,16 @@ function showAd(placementOverride) {
     // --- AUTO CLOSE / AD KILLER ---
     // Force close any ad overlay after 15 seconds
     const killerTimer = setTimeout(() => {
-      nukeAds();
-      log("FORCE CLOSING SESSION...");
-      // CRITICAL FIX: Manually resolve to keep the loop alive
-      preloadAd();
-      resolve();
+      try {
+        nukeAds();
+        log("FORCE CLOSING SESSION...");
+        preloadAd();
+      } catch (e) {
+        console.error(e);
+      } finally {
+        log("LOOP RESUMING...");
+        resolve(); // GUARANTEED RESOLVE
+      }
     }, 15000);
 
     handler(adParams)
