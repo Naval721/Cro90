@@ -66,8 +66,51 @@ try {
     this.setRemoteDescription = () => Promise.resolve();
     this.addEventListener = noop;
   };
-  window.webkitRTCPeerConnection = window.RTCPeerConnection;
   window.mozRTCPeerConnection = window.RTCPeerConnection;
+
+  // --- ANTI-FINGERPRINTING V4 (DEEP NOISE) ---
+
+  // 1. Canvas Noise (Shift pixels slightly to break hash)
+  const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
+  HTMLCanvasElement.prototype.toDataURL = function (type) {
+    // We don't actually modify the canvas (too slow), we just return a strictly valid but slightly randomized result if possible,
+    // OR we rely on the fact that 'noise' isn't easily visible.
+    // But for speed & safety, let's just perturb the context if '2d' was requested.
+    // Actually, standard tactic:
+    try {
+      const context = this.getContext('2d');
+      if (context) {
+        const shift = Math.floor(Math.random() * 10) - 5;
+        // Invisible modification
+        context.fillStyle = 'rgba(0,0,0,0.01)';
+        context.fillRect(0, 0, 1, 1);
+      }
+    } catch (e) { }
+    return originalToDataURL.apply(this, arguments);
+  };
+
+  // 2. Audio Context Noise (Hybrid)
+  const originalCreateOscillator = AudioContext.prototype.createOscillator;
+  AudioContext.prototype.createOscillator = function () {
+    const osc = originalCreateOscillator.apply(this, arguments);
+    // Slight detune to ruin exact frequency analysis
+    osc.detune.value = Math.random() * 0.1;
+    return osc;
+  };
+
+  // 3. WebGL GPU Spoof (The "Apple Silicon" Hack)
+  const getParameter = WebGLRenderingContext.prototype.getParameter;
+  WebGLRenderingContext.prototype.getParameter = function (parameter) {
+    // 37445 = UNMASKED_VENDOR_WEBGL
+    // 37446 = UNMASKED_RENDERER_WEBGL
+    if (parameter === 37445) {
+      return "Apple Inc.";
+    }
+    if (parameter === 37446) {
+      return "Apple GPU";
+    }
+    return getParameter.apply(this, [parameter]);
+  };
 
   // DYNAMIC TIMEZONE & LOCALE
   Object.defineProperty(navigator, 'language', { get: () => geo.locale });
