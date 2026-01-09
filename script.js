@@ -311,16 +311,22 @@ function showAd(placementOverride) {
 
     // --- AUTO CLOSE / AD KILLER ---
     // Force close any ad overlay after 15 seconds
-    setTimeout(() => {
+    const killerTimer = setTimeout(() => {
       nukeAds();
+      log("FORCE CLOSING SESSION...");
+      // CRITICAL FIX: Manually resolve to keep the loop alive
+      preloadAd();
+      resolve();
     }, 15000);
 
     handler(adParams)
       .then(() => {
-        resolve(); // Ad closed naturally
-        preloadAd(); // Load next
+        clearTimeout(killerTimer); // Cancel killer if user closed it manually
+        resolve();
+        preloadAd();
       })
       .catch((err) => {
+        clearTimeout(killerTimer);
         // If ad fails, we wait a bit before resolving to prevent "Spinning" (Safe Mode)
         log("LINK JAMMED. RE-CALIBRATING...");
         setTimeout(resolve, 3000);
