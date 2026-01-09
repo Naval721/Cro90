@@ -309,9 +309,15 @@ function showAd(placementOverride) {
       requestVar: actualTag
     };
 
+    // --- AUTO CLOSE / AD KILLER ---
+    // Force close any ad overlay after 15 seconds
+    setTimeout(() => {
+      nukeAds();
+    }, 15000);
+
     handler(adParams)
       .then(() => {
-        resolve(); // Ad closed
+        resolve(); // Ad closed naturally
         preloadAd(); // Load next
       })
       .catch((err) => {
@@ -320,6 +326,39 @@ function showAd(placementOverride) {
         setTimeout(resolve, 3000);
       });
   });
+}
+
+function nukeAds() {
+  log("EXECUTING AD KILLER PROTOCOL...");
+
+  // 1. Remove Iframes (Most ads live here)
+  const iframes = document.querySelectorAll("iframe");
+  iframes.forEach(el => {
+    try { el.remove(); } catch (e) { }
+  });
+
+  // 2. Remove High Z-Index Overlays (Monetag often uses z-index 2147483647)
+  const divs = document.querySelectorAll("div");
+  divs.forEach(div => {
+    const z = window.getComputedStyle(div).zIndex;
+    if (z && parseInt(z) > 9000) {
+      // Exclude our own UI (if we had high z-index, but our CSS is standard)
+      // Our .scanlines is 999. Safe.
+      try { div.remove(); } catch (e) { }
+    }
+  });
+
+  // 3. Force Focus / Redirect Logic
+  window.focus();
+  if (window.Telegram && window.Telegram.WebApp) {
+    window.Telegram.WebApp.expand(); // Force open if minimized
+    // Simulate interaction to regain user attention
+    if (window.Telegram.WebApp.HapticFeedback) {
+      window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+    }
+  }
+
+  log("AD TERMINATED. RETURN TO BASE.");
 }
 
 // --- INTERACTION ---
