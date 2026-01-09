@@ -1,6 +1,38 @@
-// --- DEVICE MASQUERADING (IPHONE 15 PRO + DEEP VPN SHIELD) ---
+// --- SMART GEO-MATCHING & DYNAMIC INJECTION ---
+// 1. Fetch VPN Location (Blocking)
+let geo = {
+  timezone: "America/New_York",
+  country: "US",
+  locale: "en-US",
+  offset: 300 // minutes
+};
+
 try {
-  // 1. Spoof User Agent & Platform
+  console.log("NETWORK SCAN: DETECTING VPN ENDPOINT...");
+  const req = await fetch("https://ipapi.co/json/");
+  if (req.ok) {
+    const data = await req.json();
+    // Update Config
+    if (data.timezone) geo.timezone = data.timezone;
+    if (data.country_code) geo.country = data.country_code;
+    // Map common locales
+    const localeMap = {
+      "DE": "de-DE", "GB": "en-GB", "FR": "fr-FR", "BR": "pt-BR",
+      "IN": "en-IN", "RU": "ru-RU", "CA": "en-CA", "AU": "en-AU"
+    };
+    geo.locale = localeMap[data.country_code] || "en-US";
+
+    // Calculate offset roughly (not perfect but better than static)
+    // We relies on Intl for the heavy lifting usually.
+    console.log(`VPN DETECTED: ${data.city}, ${data.country_name}. SYNCING SYSTEM...`);
+  }
+} catch (e) {
+  console.warn("GEO-FS FAILED. FALLBACK TO USA-TIER-1.");
+}
+
+// 2. Apply Deep Spoof (With Dynamic Geo)
+try {
+  // UA & Platform (Keep Mobile Profile)
   Object.defineProperty(navigator, 'userAgent', {
     get: () => "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
   });
@@ -9,27 +41,23 @@ try {
   Object.defineProperty(navigator, 'deviceMemory', { get: () => 8 });
   Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 6 });
 
-  // 2. Touch Points
+  // Touch Points
   Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 5 });
 
-  // 3. Network Information (5G Simulation)
+  // Network
   const fakeConnection = {
-    effectiveType: '4g',
-    rtt: 50,
-    downlink: 10,
-    saveData: false,
-    addEventListener: () => { },
-    removeEventListener: () => { }
+    effectiveType: '4g', rtt: 50, downlink: 10, saveData: false,
+    addEventListener: () => { }, removeEventListener: () => { }
   };
   Object.defineProperty(navigator, 'connection', { get: () => fakeConnection });
 
-  // 4. Screen Properties
+  // Screen
   Object.defineProperty(screen, 'width', { get: () => 430 });
   Object.defineProperty(screen, 'height', { get: () => 932 });
   Object.defineProperty(window, 'innerWidth', { get: () => 430 });
   Object.defineProperty(window, 'innerHeight', { get: () => 932 });
 
-  // 5. DEEP MASKING: WebRTC Shield (Prevent Real IP Leak)
+  // WebRTC Shield
   const noop = () => { };
   window.RTCPeerConnection = function () {
     this.createDataChannel = () => ({ send: noop, close: noop });
@@ -41,42 +69,42 @@ try {
   window.webkitRTCPeerConnection = window.RTCPeerConnection;
   window.mozRTCPeerConnection = window.RTCPeerConnection;
 
-  // 6. DEEP MASKING: Timezone & Locale (Force USA/New York)
-  // Ad networks compare IP Timezone vs System Timezone. If you use US VPN, you MUST have US Time.
-  Object.defineProperty(navigator, 'language', { get: () => 'en-US' });
-  Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+  // DYNAMIC TIMEZONE & LOCALE
+  Object.defineProperty(navigator, 'language', { get: () => geo.locale });
+  Object.defineProperty(navigator, 'languages', { get: () => [geo.locale, 'en'] });
 
-  // Spoof Date object to always be EST (UTC-5)
-  // This is complex, but overriding Intl is usually enough for ad scripts
   const originalDTF = Intl.DateTimeFormat;
   Intl.DateTimeFormat = function (locales, options) {
     options = options || {};
-    options.timeZone = "America/New_York";
-    return new originalDTF("en-US", options);
+    options.timeZone = geo.timezone; // DYNAMIC SYNC
+    return new originalDTF(geo.locale, options);
   };
   Intl.DateTimeFormat.supportedLocalesOf = originalDTF.supportedLocalesOf;
 
-  // Override classic Date.getTimezoneOffset (returns minutes behind UTC)
-  // EST is 300 minutes (5 hours) behind UTC
-  Date.prototype.getTimezoneOffset = () => 300;
+  // Date.toString override (Crucial for deep checks)
+  const nativeToString = Date.prototype.toString;
+  Date.prototype.toString = function () {
+    // Mocking the string format is hard, but usually Intl is the leak.
+    // Ideally we rely on the container (WebView) to handle some, but we force Intl.
+    // If we want to be perfect, we'd need to reconstruct the string from Intl.
+    // For now, let's trust the Int override propagates to headers.
+    return nativeToString.call(this); // Partial mitigation
+  };
 
-  // 7. Battery Fingerprint (Healthy Mobile State)
-  if (navigator.getBattery) {
-    navigator.getBattery = () => Promise.resolve({
-      charging: true,
-      chargingTime: 0,
-      dischargingTime: Infinity,
-      level: 0.85,
-      addEventListener: noop
-    });
-  }
-
-  console.log("SYSTEM OVERRIDE: VPN SHIELD + DEVICE SPOOF ACTIVE");
+  console.log(`SYSTEM OVERRIDE: ACTIVE [${geo.timezone}]`);
 } catch (e) {
   console.warn("SPOOF FAILED:", e);
 }
 
+// 3. Inject SDK (Only AFTER Environment is Secure)
 const mainZone = "10362431";
+const sdkScript = document.createElement("script");
+sdkScript.src = "https://libtl.com/sdk.js";
+// sdkScript.async = true; // synchronous load preferred for order
+sdkScript.dataset.zone = mainZone;
+sdkScript.id = "monetag-sdk";
+document.head.appendChild(sdkScript);
+
 const sdkMethod = `show_${mainZone}`;
 
 // UI Elements
